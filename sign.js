@@ -224,6 +224,9 @@ function signApplicationAsync (opts) {
         })
           .then(function () {
             return Promise.mapSeries(childPaths, function (filePath) {
+              if (binaries.includes(filePath)) {
+                return
+              }
               if (ignoreFilePath(opts, filePath)) {
                 debuglog('Skipped... ' + filePath)
                 return
@@ -258,6 +261,9 @@ function signApplicationAsync (opts) {
         })
           .then(function () {
             return Promise.mapSeries(childPaths, function (filePath) {
+              if (binaries.includes(filePath)) {
+                return
+              }
               if (ignoreFilePath(opts, filePath)) {
                 debuglog('Skipped... ' + filePath)
                 return

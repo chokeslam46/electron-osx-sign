@@ -193,11 +193,9 @@ function signApplicationAsync (opts) {
         debugwarn('This flag is to be deprecated, consider using --signature-flags=restrict instead')
       }
 
-      if (optionsArguments.length) {
-        args.push('--options', [...new Set(optionsArguments)].join(','))
-      }
 
       var promise
+
       /**
        * Sort the child paths by how deep they are in the file tree.  Some arcane apple
        * logic expects the deeper files to be signed first otherwise strange errors get
@@ -216,13 +214,26 @@ function signApplicationAsync (opts) {
             return
           }
           debuglog('Signing... ' + filePath)
+          if (optionsArguments.length) {
+            const idx = optionsArguments.indexOf('runtime');
+            if (idx > -1) {
+              optionsArguments.splice(idx, 1);
+            }
+            args.push('--options', [...new Set(optionsArguments)].join(','))
+          }
           return execFileAsync('codesign', args.concat('--entitlements', opts['entitlements-inherit'], filePath))
         })
           .then(function () {
+            if (optionsArguments.length) {
+              args.push('--options', [...new Set(optionsArguments)].join(','))
+            }
             debuglog('Signing... ' + opts.app)
             return execFileAsync('codesign', args.concat('--entitlements', opts.entitlements, opts.app))
           })
       } else {
+        if (optionsArguments.length) {
+          args.push('--options', [...new Set(optionsArguments)].join(','))
+        }
         // Otherwise normally
         promise = Promise.mapSeries(childPaths, function (filePath) {
           if (ignoreFilePath(opts, filePath)) {

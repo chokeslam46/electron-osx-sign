@@ -215,25 +215,21 @@ function signApplicationAsync (opts) {
           }
           debuglog('Signing... ' + filePath)
           if (optionsArguments.length) {
-            const idx = optionsArguments.indexOf('runtime');
-            if (idx > -1) {
-              optionsArguments.splice(idx, 1);
-            }
-            args.push('--options', [...new Set(optionsArguments)].join(','))
+            const set = new Set(optionsArguments)
+            set.delete('runtime')
+            return execFileAsync('codesign', args.concat('--options', [...set].join(','), '--entitlements', opts['entitlements-inherit'], filePath))
           }
+
           return execFileAsync('codesign', args.concat('--entitlements', opts['entitlements-inherit'], filePath))
         })
           .then(function () {
-            if (optionsArguments.length) {
-              args.push('--options', [...new Set(optionsArguments)].join(','))
-            }
             debuglog('Signing... ' + opts.app)
+            if (optionsArguments.length) {
+              return execFileAsync('codesign', args.concat('--options', [...new Set(optionsArguments)].join(','), '--entitlements', opts.entitlements, opts.app))
+            }
             return execFileAsync('codesign', args.concat('--entitlements', opts.entitlements, opts.app))
           })
       } else {
-        if (optionsArguments.length) {
-          args.push('--options', [...new Set(optionsArguments)].join(','))
-        }
         // Otherwise normally
         promise = Promise.mapSeries(childPaths, function (filePath) {
           if (ignoreFilePath(opts, filePath)) {
@@ -241,10 +237,18 @@ function signApplicationAsync (opts) {
             return
           }
           debuglog('Signing... ' + filePath)
+          if (optionsArguments.length) {
+            const set = new Set(optionsArguments)
+            set.delete('runtime')
+            return execFileAsync('codesign', args.concat('--options', [...set].join(','), filePath))
+          }
           return execFileAsync('codesign', args.concat(filePath))
         })
           .then(function () {
             debuglog('Signing... ' + opts.app)
+            if (optionsArguments.length) {
+              return execFileAsync('codesign', args.concat('--options', [...new Set(optionsArguments)].join(','), opts.app))
+            }
             return execFileAsync('codesign', args.concat(opts.app))
           })
       }

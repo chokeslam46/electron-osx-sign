@@ -141,8 +141,6 @@ function signApplicationAsync (opts) {
         return false
       }
 
-      if (opts.binaries) childPaths = childPaths.concat(opts.binaries)
-
       var args = [
         '--sign', opts.identity.hash || opts.identity.name,
         '--force'
@@ -206,22 +204,38 @@ function signApplicationAsync (opts) {
         const bDepth = b.split(path.sep).length
         return bDepth - aDepth
       })
+      const binaries = []
+      if (opts.binaries) {
+        binaries.concat(opts.binaries)
+      }
       if (opts.entitlements) {
         // Sign with entitlements
-        promise = Promise.mapSeries(childPaths, function (filePath) {
-          if (ignoreFilePath(opts, filePath)) {
-            debuglog('Skipped... ' + filePath)
-            return
-          }
+        promise = Promise.mapSeries(binaries, function (filePath) {
           debuglog('Signing... ' + filePath)
           if (optionsArguments.length) {
             const set = new Set(optionsArguments)
             set.delete('runtime')
-            return execFileAsync('codesign', args.concat('--options', [...set].join(','), '--entitlements', opts['entitlements-inherit'], filePath))
+            if (set.size) {
+              return execFileAsync('codesign', args.concat('--options', [...set].join(','), '--entitlements', opts['entitlements-inherit'], filePath))
+            }
           }
 
           return execFileAsync('codesign', args.concat('--entitlements', opts['entitlements-inherit'], filePath))
         })
+          .then(function () {
+            return Promise.mapSeries(childPaths, function (filePath) {
+              if (ignoreFilePath(opts, filePath)) {
+                debuglog('Skipped... ' + filePath)
+                return
+              }
+              debuglog('Signing... ' + filePath)
+              if (optionsArguments.length) {
+                return execFileAsync('codesign', args.concat('--options', [...new Set(optionsArguments)].join(','), '--entitlements', opts['entitlements-inherit'], filePath))
+              }
+    
+              return execFileAsync('codesign', args.concat('--entitlements', opts['entitlements-inherit'], filePath))
+            })
+          })
           .then(function () {
             debuglog('Signing... ' + opts.app)
             if (optionsArguments.length) {
@@ -231,19 +245,30 @@ function signApplicationAsync (opts) {
           })
       } else {
         // Otherwise normally
-        promise = Promise.mapSeries(childPaths, function (filePath) {
-          if (ignoreFilePath(opts, filePath)) {
-            debuglog('Skipped... ' + filePath)
-            return
-          }
+        promise = Promise.mapSeries(binaries, function (filePath) {
           debuglog('Signing... ' + filePath)
           if (optionsArguments.length) {
             const set = new Set(optionsArguments)
             set.delete('runtime')
-            return execFileAsync('codesign', args.concat('--options', [...set].join(','), filePath))
+            if (set.size) {
+              return execFileAsync('codesign', args.concat('--options', [...set].join(','), filePath))
+            }
           }
           return execFileAsync('codesign', args.concat(filePath))
         })
+          .then(function () {
+            return Promise.mapSeries(childPaths, function (filePath) {
+              if (ignoreFilePath(opts, filePath)) {
+                debuglog('Skipped... ' + filePath)
+                return
+              }
+              debuglog('Signing... ' + filePath)
+              if (optionsArguments.length) {
+                return execFileAsync('codesign', args.concat('--options', [...new Set(optionsArguments)].join(','), filePath))
+              }
+              return execFileAsync('codesign', args.concat(filePath))
+            })
+          })
           .then(function () {
             debuglog('Signing... ' + opts.app)
             if (optionsArguments.length) {
